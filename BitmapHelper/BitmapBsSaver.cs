@@ -9,6 +9,9 @@ using System.Runtime.InteropServices;
 
 namespace processimage.BitmapHelper
 {
+    /// <summary>
+    /// Contains Save method that gets imageBytes,fileName,Width,Height and saves.
+    /// </summary>
     static class BitmapBsSaver
     {
         /// <summary>

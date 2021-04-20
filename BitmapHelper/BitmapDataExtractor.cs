@@ -12,6 +12,7 @@ namespace processimage.BitmapHelper
 {
     /// <summary>
     /// Extracts bitmap stride,bytes,height,width. Thus we write less boilerplate code.
+    /// Gets information form constructor and gives information via deconstructor.
     /// </summary>
     class BitmapDataExtractor
     {
