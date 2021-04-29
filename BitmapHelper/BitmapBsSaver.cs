@@ -21,9 +21,9 @@ namespace processimage.BitmapHelper
         /// <param name="fileName"></param>
         /// <param name="Width"></param>
         /// <param name="Height"></param>
-        public static void  Save(byte[] imageBytes, string fileName,int Width,int Height) {
+        public static void  Save(byte[] imageBytes, string fileName,int Width,int Height,PixelFormat pixelFormat) {
             Bitmap bitmap = new Bitmap(Width,Height);
-            BitmapData bd = bitmap.LockBits(new Rectangle(0,0,Width,Height),ImageLockMode.WriteOnly,PixelFormat.Format24bppRgb);
+            BitmapData bd = bitmap.LockBits(new Rectangle(0,0,Width,Height),ImageLockMode.WriteOnly,pixelFormat);
             Marshal.Copy(imageBytes,0,bd.Scan0,imageBytes.Length);
             bitmap.UnlockBits(bd);
             bitmap.Save(fileName);

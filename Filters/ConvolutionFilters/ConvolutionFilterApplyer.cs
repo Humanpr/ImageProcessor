@@ -51,7 +51,7 @@ namespace processimage.Filters.ConvolutionFilters
 
             //if (matrix.Factor == 0) { return; }
 
-            (int Stride, byte[] imageBytes, int Width, int Height) = new BitmapDataExtractor(filePath);
+            (int Stride, byte[] imageBytes, int Width, int Height,PixelFormat pixelFormat) = new BitmapDataExtractor(filePath);
 
             byte[] WorkBytes = new byte[Height * Stride];
             
@@ -100,7 +100,7 @@ namespace processimage.Filters.ConvolutionFilters
                 }
 
             }
-            BitmapBsSaver.Save(WorkBytes, outputFileName, Width, Height);
+            BitmapBsSaver.Save(WorkBytes, outputFileName, Width, Height,pixelFormat);
 
         }
         /// <summary>

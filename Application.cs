@@ -57,6 +57,7 @@ namespace processimage
             OutPutFileNameArgument.IsRequired(false, "No Empty name for output file name ");
 
             var LevelOfFilter = applyFilter.Option("-l|--level","Level of filter",CommandOptionType.SingleValue);
+            
 
             applyFilter.OnExecute(() => {
 
@@ -83,8 +84,8 @@ namespace processimage
                 switch (filter) {
                     case FilterOptions.Brightness:
                     case FilterOptions.Grayscale:
-                    case FilterOptions.Invert:
-                        new PerPixelFilterApplyer(filter,fileInfoSrcImg.DirectoryName+$"\\{fileInfoSrcImg.Name}").ApplyFilter(fileInfoOutImg.DirectoryName+$"\\{fileInfoOutImg.Name}");
+                    case FilterOptions.Invert: //TODO make non level required ilters to not accept level option
+                        new PerPixelFilterApplyer(filter,fileInfoSrcImg.DirectoryName+$"\\{fileInfoSrcImg.Name}").ApplyFilter(fileInfoOutImg.DirectoryName+$"\\{fileInfoOutImg.Name}",Int32.Parse(LevelOfFilter.Value()==null?"0":LevelOfFilter.Value()));
                         break;
                     case FilterOptions.GaussianBlur:
                     case FilterOptions.Embose:
