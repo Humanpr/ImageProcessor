@@ -11,62 +11,124 @@ using Serilog;
 namespace processimage.Filters
 {
     /// <summary>
-    /// Gets filter then switchs it then calls proper Filter
+    /// Gets FilterOption and applyes specified filter to image.
     /// </summary>
     class PerPixelFilterApplyer
     {
         FilterOptions filter;
-        string filePath;
+        string srcImagePath;
         
 
-        public PerPixelFilterApplyer(FilterOptions _filter, string _filePath)
+        public PerPixelFilterApplyer(FilterOptions _filter, string _srcImagePath)
         {
-            
-            filter = _filter; 
-            filePath = _filePath;
-           
+            filter = _filter;
+            srcImagePath = _srcImagePath;      
         }
 
-        public void ApplyFilter(string outputFileName, int level) {
+        public void ApplyFilter(string outImageFilePath, int level) {
             switch (filter) {
                 case FilterOptions.Grayscale:
-                    Log.Debug("FilePath: {path}",filePath);
-                    PerBitApply(MakePixelGray,outputFileName);
+                    Log.Debug("FilePath: {path}",srcImagePath);
+                    PerBitApply(MakePixelGray,outImageFilePath);
                     break;
                 case FilterOptions.Invert:
-                    Log.Debug("FilePath: {path}", filePath);
-                    PerBitApply(InvertPixel,outputFileName);
+                    Log.Debug("FilePath: {path}", srcImagePath);
+                    PerBitApply(InvertPixel,outImageFilePath);
                     break;
                 case FilterOptions.Brightness:
-                    Log.Debug("FilePath: {path}", filePath);
-                    PerBitApply(BrightenPixel,filePath);
+                    Log.Debug("FilePath: {path}", srcImagePath);
+                    PerBitApply(BrightenPixel,outImageFilePath,level);
                     break;
             }
         }
 
-        public delegate void PerPixelApplyerFunc(ref byte[] imageBytes, int indx, int pixelcomponentcount, int imageBitSize, int level = 0);
-
-
-        public void BrightenPixel(ref byte[] imageBytes, int indx, int PixelComponentCount, int imageBitSizeForPixel, int level)
+        // Delegate that applies logic on imageBytes
+        public delegate void PerPixelApplyerFunc(ref byte[] imageBytes, int indx, int pixelcomponentcount, int imageBpp, int level = 0);
+        
+        /// <summary>
+        /// Iterates array and calls specified function for each pixel component.
+        /// </summary>
+        /// <param name="applyerFunction"></param>
+        /// <param name="outputFileName"></param>
+        public void PerBitApply(PerPixelApplyerFunc applyerFunction, string outputFileName, int level = 0)
         {
-            int maxIntensity = (int)Math.Pow(2, imageBitSizeForPixel / PixelComponentCount);
-            var BrightenedPixel = imageBytes[indx] + level;
-            if (BrightenedPixel > maxIntensity) { BrightenedPixel = maxIntensity; }
-            if (BrightenedPixel < 0) { BrightenedPixel = 0; }
-            imageBytes[indx] = (byte)BrightenedPixel;
-        }
 
-        public void InvertPixel(ref byte[] imageBytes, int indx,int PixelComponentCount, int imageBitSizeForPixel, int level)
-        {
-            imageBytes[indx] = (byte)((int)Math.Pow(2, imageBitSizeForPixel / PixelComponentCount) - imageBytes[indx]);    /*TODO fix 256 for 32 bit image*/
+            BitmapDataExtractor bitmapDataExtractor = new BitmapDataExtractor(srcImagePath);
+
+            (int Stride, byte[] imageBytes, int Width, int Height, PixelFormat pixelFormat) = bitmapDataExtractor;
+
+            //Extract data from bitmap
+
+            int PixelComponentCount = Stride / Width;
+
+            int imageBpp = Int32.Parse(Regex.Match(pixelFormat.ToString(), @"\d+").Value);
+            // if Alpha value exists then we have 4 pixel components otherwise we have 3
+
+            Log.Debug($"Calculated image bpp size is {imageBpp}");
+            Log.Debug($"Calculated pixel compomemt max value is {Math.Pow(2, imageBpp / PixelComponentCount)}");
+
+            // Iterating imageBytes by PixelComponentSize
+            for (int i = 0; i < Height; i++)
+            {
+                for (int a = 0; a < Stride - PixelComponentCount; a = a + PixelComponentCount)
+                {
+                    applyerFunction(ref imageBytes, i * Stride + a, PixelComponentCount, imageBpp, level);
+                }
+            }
+
+            BitmapBsSaver.Save(imageBytes, outputFileName, Width, Height, pixelFormat); // Saves bitmap with specified byte array
         }
 
         /// <summary>
-        /// Takes byte array ref and avareges first 3 pixel components and sets avarage value to that first 3 pixel components
+        /// Takes PerPixelApplyerFunc arguments and brightens pixel.
+        /// </summary>
+        /// <param name="imageBytes"></param>
+        /// <param name="indx"></param>
+        /// <param name="PixelComponentCount"></param>
+        /// <param name="imageBpp"></param>
+        /// <param name="level"></param>
+        public void BrightenPixel(ref byte[] imageBytes, int indx, int PixelComponentCount, int imageBpp, int level)
+        {
+            int maxIntensity = (int)Math.Pow(2, imageBpp / PixelComponentCount)-1;
+
+            var b = imageBytes[indx];
+            var g = imageBytes[indx + 1];
+            var r = imageBytes[indx + 2];
+
+             imageBytes[indx] = (b+level) switch {var c when c< 0 => 0, var c when c > maxIntensity => (byte)(maxIntensity), var c =>(byte)c }  ;
+
+             imageBytes[indx + 1] =  (g + level) switch { var c when c < 0 => 0, var c when c > maxIntensity => (byte)(maxIntensity), var c => (byte)c };
+
+             imageBytes[indx + 2] =  (r + level) switch { var c when c < 0 => 0, var c when c > maxIntensity => (byte)(maxIntensity), var c => (byte)c };
+            
+             }
+
+
+        /// <summary>
+        /// Takes PerPixelApplyerFunc arguments and inverts pixel.
+        /// </summary>
+        /// <param name="imageBytes"></param>
+        /// <param name="indx"></param>
+        /// <param name="PixelComponentCount"></param>
+        /// <param name="imageBpp"></param>
+        /// <param name="level"></param>
+        public void InvertPixel(ref byte[] imageBytes, int indx,int PixelComponentCount, int imageBpp, int level)
+        {
+            int maxIntensty = (int)Math.Pow(2, imageBpp / PixelComponentCount)-1;
+            
+            imageBytes[indx] = (byte)(maxIntensty - imageBytes[indx]);    /*TODO fix 256 for 32 bit image*/
+
+            imageBytes[indx + 1] = (byte)(maxIntensty - imageBytes[indx+1]);    
+
+            imageBytes[indx + 2] = (byte)(maxIntensty - imageBytes[indx+2]);    
+        }
+
+        /// <summary>
+        /// Takes PerPixelApplyerFunc delegate arguments and makes pixel gray (avarages bgr values and sets avarage to bgr again).
         /// </summary>
         /// <param name="bytes"></param>
         /// <param name="indx"></param>
-        void MakePixelGray(ref byte[] bytes, int indx,int PixelComponentCount,int imageBitSize,int level)
+        void MakePixelGray(ref byte[] bytes, int indx,int PixelComponentCount,int imageBpp,int level)
         {
             var b = bytes[indx];
             var g = bytes[indx + 1];
@@ -84,36 +146,7 @@ namespace processimage.Filters
         }
 
         
-        /// <summary>
-        /// Iterates array and calls specified function for each pixel component.
-        /// </summary>
-        /// <param name="applyerFunction"></param>
-        /// <param name="outputFileName"></param>
-        public void PerBitApply(PerPixelApplyerFunc applyerFunction,string outputFileName,int level=0) {
-
-            BitmapDataExtractor bitmapDataExtractor = new BitmapDataExtractor(filePath);
-
-            (int Stride, byte[] imageBytes, int Width, int Height, PixelFormat pixelFormat) = bitmapDataExtractor;
-
-            byte[] OutputBytes = imageBytes;
-            
-            int PixelComponentCount = Stride / Width;
-            
-            int imageBitSizeForPixel = Int32.Parse(Regex.Match(pixelFormat.ToString(), @"\d+").Value);
-            // if Alpha value exists then we have 4 pixel components otherwise we have 3
-            Log.Debug($"Calculated image bpp size is {imageBitSizeForPixel}");
-
-            Log.Debug($"Calculated pixel compomemt max value is {Math.Pow(2, imageBitSizeForPixel / PixelComponentCount)}");
-            for (int i = 0; i < Height; i++)
-            {
-                for (int a = 0; a < Stride - PixelComponentCount; a = a + PixelComponentCount)
-                {
-                    applyerFunction(ref imageBytes, i * Stride + a,PixelComponentCount, imageBitSizeForPixel, level);
-                }
-            }
-
-            BitmapBsSaver.Save(imageBytes, outputFileName, Width, Height, pixelFormat); // saves bitmap with specified byte array
-        }
+        
 
     }
 }

@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
+using System.IO;
+using Serilog;
 
 namespace processimage.BitmapHelper
 {
@@ -15,18 +17,21 @@ namespace processimage.BitmapHelper
     static class BitmapBsSaver
     {
         /// <summary>
-        /// Takes byte array fileName that final image will be saved and Dimensions. Then saves image.
+        /// Takes imageBytes,outputFileName,Dimensions,Pixelformat and creates bitmap then saves image.
         /// </summary>
         /// <param name="imageBytes"></param>
         /// <param name="fileName"></param>
         /// <param name="Width"></param>
         /// <param name="Height"></param>
-        public static void  Save(byte[] imageBytes, string fileName,int Width,int Height,PixelFormat pixelFormat) {
-            Bitmap bitmap = new Bitmap(Width,Height);
-            BitmapData bd = bitmap.LockBits(new Rectangle(0,0,Width,Height),ImageLockMode.WriteOnly,pixelFormat);
-            Marshal.Copy(imageBytes,0,bd.Scan0,imageBytes.Length);
-            bitmap.UnlockBits(bd);
-            bitmap.Save(fileName);
+        public static void Save(byte[] imageBytes, string fileName, int Width, int Height, PixelFormat pixelFormat)
+        {
+                Log.Debug($"ImageByte size is {imageBytes.Length}");
+                Bitmap bitmap = new Bitmap(Width, Height);
+                BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, Width, Height), ImageLockMode.WriteOnly, pixelFormat);
+                // Locked bitmap to memory, so we can do operations on bitmap. It's more efficient than setPixel,getPixel.
+                Marshal.Copy(imageBytes, 0, bitmapData.Scan0, imageBytes.Length); // Copying imagebytes to bitmap
+                bitmap.UnlockBits(bitmapData); // Unlocking bitmap from the memory
+                bitmap.Save(fileName);
         }
     }
 }
