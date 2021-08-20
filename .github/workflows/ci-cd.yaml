@@ -3,7 +3,7 @@ name: "My CI/CD"
 on:
   push:
     brnaches:
-      - main
+      - master
 
 jobs:
   build:
